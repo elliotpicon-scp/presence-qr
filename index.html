@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vérification de présence</title>
+<style>
+  body { font-family: Arial; text-align: center; padding: 20px; max-width: 600px; margin: 0 auto; }
+  button { padding: 12px 24px; background: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #status { margin: 20px auto; padding: 15px; border-radius: 4px; width: 80%; text-align: left; }
+  .info { background: #2196F3; color: white; }
+  .success { background: #4CAF50; color: white; }
+  .error { background: #F44336; color: white; }
+  a { color: white; text-decoration: underline; }
+  .debug { font-size: 12px; color: #666; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="consentement">
+  <h3>⚠️ Consentement RGPD</h3>
+  <p>Pour valider votre présence, nous utilisons votre <strong>géolocalisation</strong></p>
+  <p>Ces données :</p>
+  <ul>
+    <li>Servent <strong>uniquement</strong> à confirmer votre présence en salle.</li>
+    <li>Ne seront <strong>pas conservées</strong> après validation.</li>
+    <li>Ne seront <strong>pas partagées</strong> avec des tiers.</li>
+  </ul>
+  <label>
+    <input type="checkbox" id="consentement" required>
+    J'accepte la vérification temporaire de ma géolocalisation pour valider ma présence.
+  </label>
+</div>
+
+<h1>📍 Vérification de présence</h1>
+<p>Autorisez la géolocalisation et cliquez ci-dessous.</p>
+<button id="checkBtn" onclick="checkLocation()">Vérifier ma position</button>
+<div id="status"></div>
+<div id="debug" class="debug"></div>
+
+<script>
+  // ⚠️ REMPLACE PAR L'URL DE TON DÉPLOIEMENT APPS SCRIPT (celle qui finit par /exec)
+  const API_URL = "https://script.google.com/macros/s/AKfycbw3mGrGUmPRIYfHq7_MZkOk-EhwKQEj_alEBKFpUDUmukU1WCQZvZSCJisJWWybA1CAhQ/exec";
+
+  function checkLocation() {
+    const consent = document.getElementById('consentement');
+    const status = document.getElementById('status');
+    const debug = document.getElementById('debug');
+    const btn = document.getElementById('checkBtn');
+
+    if (!consent.checked) {
+      status.textContent = "⚠️ Merci de cocher la case de consentement.";
+      status.className = "error";
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      status.textContent = "❌ Géolocalisation non supportée par ce navigateur.";
+      status.className = "error";
+      return;
+    }
+
+    btn.disabled = true;
+    status.textContent = "⏳ Vérification de la position...";
+    status.className = "info";
+    debug.textContent = "";
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        debug.textContent = `Position: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+        fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({ lat: lat, lng: lng })
+          // ⚠️ Pas de header Content-Type ici : fetch met "text/plain;charset=UTF-8"
+          // par défaut quand on ne le précise pas, ce qui évite la requête OPTIONS
+          // de préflight que Apps Script ne sait pas gérer.
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data.ok) {
+              if (data.error === "hors_zone") {
+                status.textContent = `❌ Hors zone (${data.distance}m).`;
+              } else {
+                status.textContent = "❌ " + (data.message || data.error || "Erreur inconnue.");
+              }
+              status.className = "error";
+              btn.disabled = false;
+              return;
+            }
+
+            if (data.status === "actif") {
+              status.innerHTML = `✅ Accès autorisé ! <br><br>
+                <a href="${data.redirectUrl}">Valider présence (${data.courseName})</a>`;
+              status.className = "success";
+            } else if (data.status === "aucun_actif") {
+              const d = new Date(data.nextCourseStart);
+              const formatted = d.toLocaleString('fr-FR', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+              });
+              status.innerHTML = `❌ Aucune feuille active. <br>
+                <strong>Prochaine session : ${data.nextCourseName}</strong><br>
+                Ouverture le ${formatted}`;
+              status.className = "error";
+              btn.disabled = false;
+            } else {
+              status.textContent = "❌ Aucune feuille de présence disponible.";
+              status.className = "error";
+              btn.disabled = false;
+            }
+          })
+          .catch((err) => {
+            status.textContent = "❌ Erreur de connexion au serveur : " + err.message;
+            status.className = "error";
+            btn.disabled = false;
+          });
+      },
+      (error) => {
+        status.textContent = `❌ Erreur géolocalisation: ${error.message}`;
+        status.className = "error";
+        btn.disabled = false;
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+</script>
+</body>
+</html>
