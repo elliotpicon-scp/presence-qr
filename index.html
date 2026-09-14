@@ -14,9 +14,34 @@
   .error { background: #F44336; color: white; }
   a { color: white; text-decoration: underline; }
   .debug { font-size: 12px; color: #666; margin-top: 10px; }
+  #safariHelp {
+    display: none;
+    background: #fff3cd;
+    border: 1px solid #d9534f;
+    color: #7a2b2b;
+    padding: 14px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    text-align: left;
+    font-size: 14px;
+  }
+  #safariHelp h4 { margin: 0 0 8px 0; }
+  #safariHelp ol { margin: 8px 0 0 0; padding-left: 22px; }
+  #safariHelp li { margin-bottom: 6px; }
 </style>
 </head>
 <body>
+
+<div id="safariHelp">
+  <h4>⚠️ Tu es sur Safari</h4>
+  <p>Safari a un réglage de localisation propre à chaque site, séparé des réglages généraux du téléphone/ordinateur. Si le bouton ci-dessous te répond "accès refusé", vérifie ceci :</p>
+  <ol>
+    <li><strong>Sur iPhone/iPad :</strong> Réglages → Safari → Localisation → mets <strong>"Demander"</strong> (pas besoin de "Autoriser" en permanence, juste ne pas laisser sur "Refuser"). Ou, plus rapide : sur cette page, touche l'icône "aA" à gauche de la barre d'adresse → Réglages du site web → Localisation → "Demander".</li>
+    <li><strong>Sur Mac :</strong> menu Safari (en haut à gauche) → Réglages pour ce site web… → Localisation → passe sur <strong>"Demander"</strong>.</li>
+    <li><strong>Aussi sur Mac, au niveau du système :</strong> Réglages Système → Confidentialité et sécurité → Service de localisation → vérifie que le service est activé et que Safari est bien coché dans la liste.</li>
+  </ol>
+  <p>Une fois le réglage sur "Demander" (ou "Autoriser"), recharge cette page et clique à nouveau sur "Vérifier ma position" : Safari te proposera alors la fenêtre d'autorisation.</p>
+</div>
 
 <div class="consentement">
   <h3>⚠️ Consentement RGPD</h3>
@@ -42,6 +67,17 @@
 <script>
   // ⚠️ REMPLACE PAR L'URL DE TON DÉPLOIEMENT APPS SCRIPT (celle qui finit par /exec)
   const API_URL = "https://script.google.com/macros/s/AKfycbw3mGrGUmPRIYfHq7_MZkOk-EhwKQEj_alEBKFpUDUmukU1WCQZvZSCJisJWWybA1CAhQ/exec";
+
+  // Affiche le bandeau d'aide uniquement sur Safari (desktop ou iOS)
+  try {
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    if (isSafari) {
+      const help = document.getElementById('safariHelp');
+      if (help) help.style.display = 'block';
+    }
+  } catch (e) {
+    console.error('Détection Safari : erreur ignorée', e);
+  }
 
   function checkLocation() {
     const consent = document.getElementById('consentement');
